@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dapur Kilat — Cooking Game</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Trebuchet MS", Verdana, sans-serif;
+    background: #241611;
+    color: #fff;
+    overflow: hidden;
+  }
+  #game {
+    width: 1280px; height: 800px; margin: 0 auto; position: relative;
+    background:
+      repeating-linear-gradient(0deg, transparent 0 46px, rgba(0,0,0,.18) 46px 48px),
+      repeating-linear-gradient(90deg, transparent 0 62px, rgba(0,0,0,.18) 62px 64px),
+      linear-gradient(180deg, #7a4a2b 0%, #5d3520 55%, #4a2a18 100%);
+    display: flex; flex-direction: column;
+  }
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 18px;
+    padding: 12px 22px 8px;
+  }
+  .logo { font-size: 34px; font-weight: 900; letter-spacing: 1px; color: #ffd166; text-shadow: 0 3px 0 #7a3b00, 0 5px 10px rgba(0,0,0,.5); }
+  .logo small { display: block; font-size: 12px; letter-spacing: 4px; color: #ffe9b0; font-weight: 700; }
+  .hud { display: flex; gap: 12px; margin-left: auto; align-items: center; }
+  .pill {
+    background: rgba(0,0,0,.45); border: 2px solid rgba(255,255,255,.25);
+    border-radius: 999px; padding: 7px 16px; font-weight: 800; font-size: 17px; white-space: nowrap;
+  }
+  .pill b { color: #ffd166; }
+  .pill.hot { border-color: #ff5d5d; color: #ffb3b3; }
+  #timerWrap { width: 260px; }
+  #timerBarOuter { height: 16px; background: rgba(0,0,0,.5); border-radius: 999px; overflow: hidden; border: 2px solid rgba(255,255,255,.3); }
+  #timerBar { height: 100%; width: 100%; background: linear-gradient(90deg, #06d6a0, #ffd166); transition: width .2s linear; }
+  #timerBar.low { background: linear-gradient(90deg, #ef476f, #ff8a5c); }
+  #timerText { text-align: center; font-size: 13px; font-weight: 800; margin-top: 2px; color: #ffe9b0; }
+
+  /* ---------- order board ---------- */
+  #board {
+    margin: 4px 22px 0; background: #3a2115; border: 3px solid #c89b6a; border-radius: 14px;
+    padding: 10px 14px 12px; box-shadow: inset 0 0 0 2px #6b4423, 0 6px 14px rgba(0,0,0,.45);
+  }
+  #board h2 { font-size: 14px; letter-spacing: 3px; color: #ffd166; margin-bottom: 8px; }
+  #board h2 span { color: #fff; letter-spacing: 0; font-size: 12px; float: right; }
+  #orders { display: flex; gap: 14px; }
+  .ticket {
+    flex: 1; background: #fff8e1; color: #3a2115; border-radius: 10px; padding: 10px 12px 8px;
+    position: relative; box-shadow: 0 4px 0 #d8c49a; min-height: 96px;
+    border-top: 8px solid #ef476f; transition: transform .15s;
+  }
+  .ticket.done { border-top-color: #06d6a0; }
+  .ticket .dish { font-size: 19px; font-weight: 900; }
+  .ticket .price { position: absolute; top: 8px; right: 10px; font-weight: 900; color: #b7791f; font-size: 17px; }
+  .ticket .needs { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .ticket .pat { height: 8px; background: #e8dcc0; border-radius: 99px; margin-top: 9px; overflow: hidden; }
+  .ticket .pat i { display: block; height: 100%; background: #06d6a0; }
+  .ticket .pat i.low { background: #ef476f; }
+  .need {
+    display: inline-flex; align-items: center; gap: 5px; background: #fff; border: 2px solid #e0cf9f;
+    border-radius: 999px; padding: 3px 9px 3px 4px; font-size: 13px; font-weight: 800;
+  }
+  .need.have { background: #d9f7e8; border-color: #06d6a0; text-decoration: none; }
+  .need .dot { width: 18px; height: 18px; border-radius: 50%; display: inline-block; }
+  .ticket.empty { background: rgba(255,248,225,.16); border: 2px dashed rgba(255,255,255,.35); box-shadow: none; color: #ffe9b0; display: flex; align-items: center; justify-content: center; font-weight: 700; }
+
+  /* ---------- main: plate + counter ---------- */
+  main { flex: 1; display: flex; gap: 18px; padding: 14px 22px 10px; }
+  #plateSide { width: 430px; display: flex; flex-direction: column; }
+  #plateSide h3, #counterSide h3 { font-size: 14px; letter-spacing: 3px; color: #ffd166; margin-bottom: 8px; }
+  #plateBox {
+    flex: 1; background: linear-gradient(180deg, #8b5a2b, #6b4423); border-radius: 16px;
+    border: 3px solid #c89b6a; position: relative; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-end; padding-bottom: 18px; overflow: hidden;
+  }
+  #plateBox::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 34px;
+    background: repeating-linear-gradient(90deg, #a06a35 0 26px, #8b5a2b 26px 52px);
+    border-bottom: 3px solid #5d3520;
+  }
+  #stack { width: 300px; display: flex; flex-direction: column-reverse; align-items: center; margin-bottom: 6px; min-height: 150px; justify-content: flex-start; }
+  .layer {
+    width: 260px; height: 34px; border-radius: 16px; margin-top: -6px; display: flex;
+    align-items: center; justify-content: center; font-weight: 900; font-size: 14px; color: rgba(0,0,0,.55);
+    box-shadow: 0 2px 4px rgba(0,0,0,.35); cursor: pointer; border: 2px solid rgba(0,0,0,.25);
+  }
+  .layer:first-child { margin-top: 0; }
+  .layer:hover { filter: brightness(1.15); }
+  .layer.bun { background: linear-gradient(180deg, #f2c078, #e0a458); border-radius: 60px 60px 14px 14px; height: 38px; }
+  .layer.patty { background: linear-gradient(180deg, #6b4226, #4e2e18); color: #ffd9a0; }
+  .layer.cheese { background: linear-gradient(180deg, #ffd93b, #ffb703); clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%); }
+  .layer.lettuce { background: linear-gradient(180deg, #7bd747, #4caf50); border-radius: 40% 60% 55% 45%; }
+  .layer.tomato { background: linear-gradient(180deg, #ff6b6b, #e63946); color: #fff; }
+  .layer.sauce { background: linear-gradient(180deg, #ff9f1c, #fb8500); height: 22px; border-radius: 999px; width: 220px; }
+  #plateHint { font-size: 14px; color: #ffe9b0; font-weight: 700; text-align: center; min-height: 20px; }
+  #plateHint.bad { color: #ff8a8a; }
+  #plateHint.good { color: #7dffb0; }
+  #plate {
+    width: 330px; height: 46px; background: radial-gradient(ellipse at center, #fdfdfd 0%, #d9d9d9 70%, #b8b8b8 100%);
+    border-radius: 50%; box-shadow: 0 8px 16px rgba(0,0,0,.5); border: 3px solid #fff;
+  }
+  #plateActions { display: flex; gap: 12px; margin-top: 14px; }
+  button {
+    font-family: inherit; cursor: pointer; border: none; font-weight: 900;
+  }
+  #serveBtn {
+    flex: 1; padding: 13px 10px; font-size: 20px; border-radius: 12px; color: #fff;
+    background: linear-gradient(180deg, #06d6a0, #04966f); box-shadow: 0 5px 0 #036b50, 0 8px 14px rgba(0,0,0,.4);
+  }
+  #serveBtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #036b50; }
+  #serveBtn.ready { animation: pulse 0.8s infinite; background: linear-gradient(180deg, #ffd166, #f4a900); color: #4a2a00; box-shadow: 0 5px 0 #b7791f, 0 8px 14px rgba(0,0,0,.4); }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  #trashBtn {
+    padding: 13px 16px; font-size: 16px; border-radius: 12px; color: #fff;
+    background: linear-gradient(180deg, #ef476f, #c1123b); box-shadow: 0 5px 0 #8d0b28, 0 8px 14px rgba(0,0,0,.4);
+  }
+  #trashBtn:active { transform: translateY(4px); box-shadow: 0 1px 0 #8d0b28; }
+
+  /* ---------- counter / ingredients ---------- */
+  #counterSide { flex: 1; display: flex; flex-direction: column; }
+  #bins { flex: 1; display: grid; grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 12px; }
+  .bin {
+    background: linear-gradient(180deg, #a5713d, #7d4f22); border: 3px solid #c89b6a; border-radius: 14px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    cursor: pointer; position: relative; box-shadow: 0 5px 0 #4a2a18, 0 8px 14px rgba(0,0,0,.35);
+    transition: transform .08s;
+  }
+  .bin:hover { filter: brightness(1.12); }
+  .bin:active { transform: translateY(4px); box-shadow: 0 1px 0 #4a2a18; }
+  .bin .key {
+    position: absolute; top: 8px; left: 10px; background: rgba(0,0,0,.5); color: #ffd166;
+    font-weight: 900; font-size: 13px; border-radius: 6px; padding: 2px 8px; border: 1px solid rgba(255,255,255,.35);
+  }
+  .bin .shape { width: 84px; height: 52px; display: flex; align-items: center; justify-content: center; }
+  .bin .name { font-size: 17px; font-weight: 900; color: #fff; text-shadow: 0 2px 3px rgba(0,0,0,.5); }
+  .bin .sub { font-size: 12px; color: #ffe9b0; font-weight: 700; }
+  .shape .ing { display: block; }
+  .ing.bun { width: 78px; height: 40px; background: linear-gradient(180deg, #f2c078, #dd9a4e); border-radius: 40px 40px 10px 10px; border: 2px solid #b57a35; }
+  .ing.patty { width: 80px; height: 26px; background: linear-gradient(180deg, #6b4226, #4e2e18); border-radius: 14px; border: 2px solid #33200f; }
+  .ing.cheese { width: 76px; height: 40px; background: #ffd93b; clip-path: polygon(0 0, 100% 0, 88% 100%, 12% 100%); border: none; }
+  .ing.lettuce { width: 82px; height: 30px; background: linear-gradient(180deg, #7bd747, #4caf50); border-radius: 50% 50% 40% 40%; border: 2px solid #2e7d32; }
+  .ing.tomato { width: 52px; height: 44px; background: radial-gradient(circle at 35% 30%, #ff8a8a, #e63946 65%); border-radius: 50%; border: 2px solid #a11d28; }
+  .ing.sauce { width: 30px; height: 48px; background: linear-gradient(180deg, #ff9f1c, #fb8500); border-radius: 10px 10px 6px 6px; border: 2px solid #b25e00; position: relative; }
+  .ing.sauce::after { content: ""; position: absolute; top: -8px; left: 8px; width: 10px; height: 10px; background: #d35400; border-radius: 3px; }
+
+  footer {
+    padding: 6px 22px 12px; display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; font-weight: 700; color: #ffe9b0;
+  }
+  footer b { color: #ffd166; }
+  #toast {
+    position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%) scale(.8);
+    font-size: 44px; font-weight: 900; color: #ffd166; text-shadow: 0 4px 0 #7a3b00, 0 8px 20px rgba(0,0,0,.6);
+    opacity: 0; pointer-events: none; transition: all .25s; z-index: 30; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  #toast.bad { color: #ff8a8a; text-shadow: 0 4px 0 #7a0e0e, 0 8px 20px rgba(0,0,0,.6); }
+
+  /* ---------- overlay ---------- */
+  #overlay {
+    position: absolute; inset: 0; background: rgba(20, 8, 4, .82); z-index: 40;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+    text-align: center;
+  }
+  #overlay.hidden { display: none; }
+  #overlay h1 { font-size: 64px; color: #ffd166; text-shadow: 0 4px 0 #7a3b00, 0 8px 24px rgba(0,0,0,.7); letter-spacing: 2px; }
+  #overlay h2 { font-size: 22px; color: #ffe9b0; font-weight: 700; }
+  #overlay .rules {
+    background: rgba(255,248,225,.12); border: 2px solid rgba(255,209,102,.5); border-radius: 14px;
+    padding: 16px 26px; font-size: 17px; line-height: 1.75; color: #fff; text-align: left;
+  }
+  #overlay .rules b { color: #ffd166; }
+  #bigBtn {
+    padding: 16px 54px; font-size: 26px; border-radius: 14px; color: #4a2a00;
+    background: linear-gradient(180deg, #ffd166, #f4a900); box-shadow: 0 6px 0 #b7791f, 0 10px 20px rgba(0,0,0,.5);
+  }
+  #bigBtn:active { transform: translateY(5px); box-shadow: 0 1px 0 #b7791f; }
+  #finalStats { font-size: 20px; line-height: 1.9; font-weight: 800; color: #fff; }
+  #finalStats b { color: #ffd166; font-size: 26px; }
+  .shake { animation: shake .3s; }
+  @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-7px); } 75% { transform: translateX(7px); } }
+</style>
+</head>
+<body>
+<div id="game">
+  <header>
+    <div class="logo">DAPUR KILAT<small>COOKING GAME</small></div>
+    <div class="hud">
+      <div class="pill">Skor <b id="score">0</b></div>
+      <div class="pill">Hidangan <b id="served">0</b></div>
+      <div class="pill">Kombo <b id="combo">x1</b></div>
+      <div id="timerWrap">
+        <div id="timerBarOuter"><div id="timerBar"></div></div>
+        <div id="timerText">⏱ 120 dtk</div>
+      </div>
+    </div>
+  </header>
+
+  <section id="board">
+    <h2>PAPAN PESANAN <span>klik bahan di meja, susun di piring, lalu SAJIKAN!</span></h2>
+    <div id="orders"></div>
+  </section>
+
+  <main>
+    <div id="plateSide">
+      <h3>PIRING RACIKAN</h3>
+      <div id="plateBox">
+        <div id="stack"></div>
+        <div id="plateHint">Pilih bahan dari meja untuk mulai meracik.</div>
+        <div id="plate"></div>
+        <div id="plateActions">
+          <button id="serveBtn">SAJIKAN &#9650;</button>
+          <button id="trashBtn">BUANG &#10005;</button>
+        </div>
+      </div>
+    </div>
+    <div id="counterSide">
+      <h3>MEJA BAHAN — KLIK ATAU TEKAN 1–6</h3>
+      <div id="bins"></div>
+    </div>
+  </main>
+
+  <footer>
+    <div><b>1–6</b> pilih bahan &nbsp;·&nbsp; <b>Enter</b> sajikan &nbsp;·&nbsp; <b>Backspace</b> buang &nbsp;·&nbsp; klik lapisan piring untuk melepasnya</div>
+    <div>Dapur Kilat — game masak statis, tanpa internet</div>
+  </footer>
+
+  <div id="toast"></div>
+
+  <div id="overlay">
+    <h1 id="ovTitle">DAPUR KILAT</h1>
+    <h2 id="ovSub">Racik pesanan secepat kilat sebelum pelanggan kabur!</h2>
+    <div class="rules" id="ovRules">
+      <b>Cara main:</b><br>
+      1. Baca pesanan di <b>Papan Pesanan</b> — tiap hidangan butuh bahan tertentu.<br>
+      2. Klik bahan di meja (atau tekan <b>1–6</b>) untuk menumpuknya di piring.<br>
+      3. Kalau piring sudah sama persis dengan pesanan, tekan <b>SAJIKAN</b> (Enter).<br>
+      4. Sajikan sebelum waktu pesanan habis — makin cepat, makin besar bonus!
+    </div>
+    <div id="finalStats" style="display:none"></div>
+    <button id="bigBtn">MULAI MASAK</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* Dapur Kilat — original cooking game. Static, no network, keyboard + mouse. */
+
+var INGREDIENTS = [
+  { id: "bun",     key: "1", name: "Roti",   sub: "alas & penutup", color: "#e0a458" },
+  { id: "patty",   key: "2", name: "Patty",  sub: "daging panggang", color: "#6b4226" },
+  { id: "cheese",  key: "3", name: "Keju",   sub: "leleh gurih",    color: "#ffd93b" },
+  { id: "lettuce", key: "4", name: "Selada", sub: "segar renyah",   color: "#4caf50" },
+  { id: "tomato",  key: "5", name: "Tomat",  sub: "asam manis",     color: "#e63946" },
+  { id: "sauce",   key: "6", name: "Saus",   sub: "saus spesial",   color: "#fb8500" }
+];
+
+var RECIPES = [
+  { name: "Burger Klasik",  price: 120, needs: { bun: 1, patty: 1, cheese: 1, lettuce: 1, tomato: 1 } },
+  { name: "Cheeseburger",   price: 100, needs: { bun: 1, patty: 1, cheese: 2 } },
+  { name: "Salad Segar",    price: 90,  needs: { lettuce: 1, tomato: 1, cheese: 1, sauce: 1 } },
+  { name: "Sandwich Kilat", price: 110, needs: { bun: 1, lettuce: 1, tomato: 1, cheese: 1, sauce: 1 } },
+  { name: "Double Patty",   price: 150, needs: { bun: 1, patty: 2, cheese: 1, lettuce: 1 } }
+];
+
+var GAME_SECONDS = 120;
+var state = {
+  running: false, over: false, timeLeft: GAME_SECONDS,
+  score: 0, served: 0, combo: 0, bestCombo: 0,
+  plate: [], orders: [], nextOrderId: 1, timerId: null
+};
+
+var $ = function (id) { return document.getElementById(id); };
+var ingById = {};
+INGREDIENTS.forEach(function (g) { ingById[g.id] = g; });
+
+/* ---------- audio: tiny WebAudio blips, no files ---------- */
+var audioCtx = null;
+function blip(freq, dur, type) {
+  try {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type || "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.12, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch (e) { /* silent without audio */ }
+}
+
+/* ---------- build ingredient bins ---------- */
+var binsEl = $("bins");
+INGREDIENTS.forEach(function (g) {
+  var d = document.createElement("div");
+  d.className = "bin"; d.dataset.id = g.id;
+  d.innerHTML = '<span class="key">' + g.key + '</span>' +
+    '<span class="shape"><span class="ing ' + g.id + '"></span></span>' +
+    '<span class="name">' + g.name + '</span><span class="sub">' + g.sub + '</span>';
+  d.addEventListener("click", function () { addIngredient(g.id); });
+  binsEl.appendChild(d);
+});
+
+/* ---------- orders ---------- */
+function countsOf(arr) {
+  var c = {};
+  arr.forEach(function (id) { c[id] = (c[id] || 0) + 1; });
+  return c;
+}
+function sameCounts(a, b) {
+  var ka = Object.keys(a), kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  for (var i = 0; i < ka.length; i++) if (a[ka[i]] !== b[ka[i]]) return false;
+  return true;
+}
+function spawnOrder(recipeIdx) {
+  var r = RECIPES[(recipeIdx === undefined) ? Math.floor(Math.random() * RECIPES.length) : recipeIdx];
+  state.orders.push({ id: state.nextOrderId++, recipe: r, patience: 30, maxPatience: 30 });
+}
+function renderOrders() {
+  var box = $("orders");
+  box.innerHTML = "";
+  for (var s = 0; s < 3; s++) {
+    var o = state.orders[s];
+    if (!o) {
+      var e = document.createElement("div");
+      e.className = "ticket empty";
+      e.textContent = "— menunggu pesanan —";
+      box.appendChild(e);
+      continue;
+    }
+    var t = document.createElement("div");
+    t.className = "ticket";
+    var needsHtml = Object.keys(o.recipe.needs).map(function (id) {
+      var need = o.recipe.needs[id];
+      var have = (countsOf(state.plate)[id] || 0);
+      var cls = have >= need ? "need have" : "need";
+      return '<span class="' + cls + '"><span class="dot" style="background:' + ingById[id].color + '"></span>' +
+        ingById[id].name + ' ×' + need + '</span>';
+    }).join("");
+    var pct = Math.max(0, Math.round(o.patience / o.maxPatience * 100));
+    t.innerHTML = '<div class="dish">' + o.recipe.name + '</div>' +
+      '<div class="price">$' + o.recipe.price + '</div>' +
+      '<div class="needs">' + needsHtml + '</div>' +
+      '<div class="pat"><i class="' + (pct < 35 ? "low" : "") + '" style="width:' + pct + '%"></i></div>';
+    box.appendChild(t);
+  }
+}
+
+/* ---------- plate ---------- */
+function renderPlate() {
+  var stack = $("stack");
+  stack.innerHTML = "";
+  state.plate.forEach(function (id, idx) {
+    var l = document.createElement("div");
+    l.className = "layer " + id;
+    l.textContent = ingById[id].name;
+    l.title = "Klik untuk melepas";
+    l.addEventListener("click", function () {
+      state.plate.splice(idx, 1);
+      blip(300, 0.08, "triangle");
+      renderAll();
+    });
+    stack.appendChild(l);
+  });
+  var hint = $("plateHint");
+  var match = findMatch();
+  var serveBtn = $("serveBtn");
+  if (state.plate.length === 0) {
+    hint.textContent = "Pilih bahan dari meja untuk mulai meracik.";
+    hint.className = "";
+    serveBtn.classList.remove("ready");
+  } else if (match) {
+    hint.textContent = "Siap! Piring ini cocok dengan pesanan: " + match.recipe.name + " — SAJIKAN!";
+    hint.className = "good";
+    serveBtn.classList.add("ready");
+  } else {
+    hint.textContent = "Belum cocok dengan pesanan mana pun — cek Papan Pesanan.";
+    hint.className = "";
+    serveBtn.classList.remove("ready");
+  }
+}
+function findMatch() {
+  var pc = countsOf(state.plate);
+  for (var i = 0; i < state.orders.length; i++) {
+    if (sameCounts(pc, state.orders[i].recipe.needs)) return state.orders[i];
+  }
+  return null;
+}
+function addIngredient(id) {
+  if (!state.running || state.over) return;
+  state.plate.push(id);
+  blip(520 + state.plate.length * 60, 0.09, "triangle");
+  renderAll();
+}
+function clearPlate() {
+  if (!state.running || state.over) return;
+  if (state.plate.length === 0) return;
+  state.plate = [];
+  blip(220, 0.1, "sawtooth");
+  renderAll();
+}
+function serve() {
+  if (!state.running || state.over) return;
+  var match = findMatch();
+  var hint = $("plateHint");
+  if (!match) {
+    state.combo = 0;
+    hint.textContent = "Belum cocok! Periksa bahan yang diminta di Papan Pesanan.";
+    hint.className = "bad";
+    $("plateBox").classList.remove("shake");
+    void $("plateBox").offsetWidth;
+    $("plateBox").classList.add("shake");
+    blip(160, 0.2, "sawtooth");
+    renderAll();
+    return;
+  }
+  var bonus = Math.round(match.patience / match.maxPatience * 50);
+  state.combo++;
+  state.bestCombo = Math.max(state.bestCombo, state.combo);
+  var gained = (match.recipe.price + bonus) * state.combo;
+  state.score += gained;
+  state.served++;
+  state.orders.splice(state.orders.indexOf(match), 1);
+  state.plate = [];
+  toast("+$" + gained + (state.combo > 1 ? "  KOMBO x" + state.combo + "!" : ""), false);
+  blip(660, 0.12, "sine"); setTimeout(function () { blip(880, 0.15, "sine"); }, 90);
+  spawnOrder();
+  renderAll();
+}
+function toast(msg, bad) {
+  var t = $("toast");
+  t.textContent = msg;
+  t.className = "show" + (bad ? " bad" : "");
+  setTimeout(function () { t.className = ""; }, 1100);
+}
+
+/* ---------- HUD / loop ---------- */
+function renderHud() {
+  $("score").textContent = state.score;
+  $("served").textContent = state.served;
+  $("combo").textContent = "x" + Math.max(1, state.combo);
+  var pct = Math.max(0, state.timeLeft / GAME_SECONDS * 100);
+  var bar = $("timerBar");
+  bar.style.width = pct + "%";
+  bar.classList.toggle("low", state.timeLeft <= 20);
+  $("timerText").textContent = "⏱ " + Math.ceil(state.timeLeft) + " dtk";
+  $("timerText").parentElement.parentElement
+    .querySelector(".pill.hot") ;
+  document.querySelectorAll(".hud .pill")[0].classList.toggle("hot", state.timeLeft <= 20);
+}
+function renderAll() { renderHud(); renderOrders(); renderPlate(); }
+function tick() {
+  state.timeLeft -= 0.25;
+  for (var i = state.orders.length - 1; i >= 0; i--) {
+    state.orders[i].patience -= 0.25;
+    if (state.orders[i].patience <= 0) {
+      state.orders.splice(i, 1);
+      state.combo = 0;
+      toast("Pesanan kabur!", true);
+      spawnOrder();
+    }
+  }
+  if (state.timeLeft <= 0) { endGame(); return; }
+  renderAll();
+}
+function startGame() {
+  state.running = true; state.over = false;
+  state.timeLeft = GAME_SECONDS; state.score = 0; state.served = 0;
+  state.combo = 0; state.bestCombo = 0; state.plate = [];
+  state.orders = []; state.nextOrderId = 1;
+  spawnOrder(); spawnOrder(); spawnOrder();
+  $("overlay").classList.add("hidden");
+  renderAll();
+  if (state.timerId) clearInterval(state.timerId);
+  state.timerId = setInterval(tick, 250);
+}
+function endGame() {
+  state.running = false; state.over = true;
+  if (state.timerId) clearInterval(state.timerId);
+  blip(440, 0.2, "sine"); setTimeout(function () { blip(330, 0.3, "sine"); }, 150);
+  $("ovTitle").textContent = "WAKTU HABIS!";
+  $("ovSub").textContent = "Dapur tutup — pelanggan pulang dengan perut kenyang (sebagian).";
+  $("ovRules").style.display = "none";
+  var fs = $("finalStats");
+  fs.style.display = "block";
+  fs.innerHTML = "Skor akhir: <b>$" + state.score + "</b><br>" +
+    "Hidangan disajikan: <b>" + state.served + "</b> &nbsp;·&nbsp; Kombo terbaik: <b>x" + Math.max(1, state.bestCombo) + "</b>";
+  $("bigBtn").textContent = "MAIN LAGI";
+  $("overlay").classList.remove("hidden");
+}
+
+/* ---------- controls ---------- */
+$("serveBtn").addEventListener("click", serve);
+$("trashBtn").addEventListener("click", clearPlate);
+$("bigBtn").addEventListener("click", function () {
+  $("ovRules").style.display = "";
+  $("finalStats").style.display = "none";
+  $("ovTitle").textContent = "DAPUR KILAT";
+  $("ovSub").textContent = "Racik pesanan secepat kilat sebelum pelanggan kabur!";
+  $("bigBtn").textContent = "MULAI MASAK";
+  startGame();
+});
+document.addEventListener("keydown", function (e) {
+  if (!state.running) {
+    if (e.key === "Enter") $("bigBtn").click();
+    return;
+  }
+  var g = INGREDIENTS.filter(function (x) { return x.key === e.key; })[0];
+  if (g) { addIngredient(g.id); return; }
+  if (e.key === "Enter") serve();
+  else if (e.key === "Backspace") { e.preventDefault(); clearPlate(); }
+  else if (e.key === "r" || e.key === "R") startGame();
+});
+
+/* ---------- staged screenshots (?shot=...) ---------- */
+function stageShot(shot) {
+  state.running = true; state.over = false;
+  state.orders = []; state.nextOrderId = 1;
+  if (shot === "start") {
+    state.timeLeft = GAME_SECONDS; state.score = 0; state.served = 0; state.combo = 0;
+    state.plate = [];
+    spawnOrder(0); spawnOrder(2); spawnOrder(1);
+    $("overlay").classList.remove("hidden");
+  } else if (shot === "play") {
+    state.timeLeft = 87; state.score = 240; state.served = 2; state.combo = 2;
+    state.plate = ["bun", "patty", "cheese"];
+    spawnOrder(0); spawnOrder(3); spawnOrder(1);
+    state.orders[0].patience = 21; state.orders[1].patience = 14; state.orders[2].patience = 26;
+    $("overlay").classList.add("hidden");
+  } else if (shot === "serve") {
+    state.timeLeft = 64; state.score = 480; state.served = 4; state.combo = 3;
+    state.plate = ["bun", "patty", "cheese", "lettuce", "tomato"];
+    spawnOrder(0); spawnOrder(4); spawnOrder(2);
+    state.orders[0].patience = 18; state.orders[1].patience = 25; state.orders[2].patience = 9;
+    $("overlay").classList.add("hidden");
+  } else if (shot === "done") {
+    state.timeLeft = 0; state.score = 1250; state.served = 9; state.combo = 0; state.bestCombo = 4;
+    state.plate = [];
+    spawnOrder(0); spawnOrder(2); spawnOrder(1);
+    $("ovTitle").textContent = "WAKTU HABIS!";
+    $("ovSub").textContent = "Dapur tutup — pelanggan pulang dengan perut kenyang (sebagian).";
+    $("ovRules").style.display = "none";
+    var fs = $("finalStats");
+    fs.style.display = "block";
+    fs.innerHTML = "Skor akhir: <b>$1250</b><br>Hidangan disajikan: <b>9</b> &nbsp;·&nbsp; Kombo terbaik: <b>x4</b>";
+    $("bigBtn").textContent = "MAIN LAGI";
+    $("overlay").classList.remove("hidden");
+  }
+  renderAll();
+}
+
+/* ---------- boot ---------- */
+(function boot() {
+  var params = new URLSearchParams(window.location.search);
+  var shot = params.get("shot");
+  if (shot) { stageShot(shot); return; }
+  state.orders = []; spawnOrder(0); spawnOrder(2); spawnOrder(1);
+  renderAll();
+})();
+</script>
+</body>
+</html>
