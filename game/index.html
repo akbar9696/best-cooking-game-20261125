@@ -374,14 +374,17 @@ function renderPlate() {
     hint.textContent = "Pilih bahan dari meja untuk mulai meracik.";
     hint.className = "";
     serveBtn.classList.remove("ready");
+    serveBtn.textContent = "SAJIKAN ▲";
   } else if (match) {
     hint.textContent = "Siap! Piring ini cocok dengan pesanan: " + match.recipe.name + " — SAJIKAN!";
     hint.className = "good";
     serveBtn.classList.add("ready");
+    serveBtn.textContent = "SAJIKAN ★ " + match.recipe.name.toUpperCase();
   } else {
     hint.textContent = "Belum cocok dengan pesanan mana pun — cek Papan Pesanan.";
     hint.className = "";
     serveBtn.classList.remove("ready");
+    serveBtn.textContent = "SAJIKAN ▲";
   }
 }
 function findMatch() {
